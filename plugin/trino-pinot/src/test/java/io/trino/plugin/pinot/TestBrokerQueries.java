@@ -46,6 +46,7 @@ public class TestBrokerQueries
     private static final DataSchema DATA_SCHEMA;
     private static final List<Object[]> TEST_DATA;
     private static final ResultTable RESULT_TABLE;
+    private static final int LIMIT_FOR_BROKER_QUERIES = 2;
 
     private PinotClient testingPinotClient;
 
@@ -107,7 +108,8 @@ public class TestBrokerQueries
         PinotBrokerPageSource pageSource = new PinotBrokerPageSource(createSessionWithNumSplits(1, false, pinotConfig),
                 new PinotQuery("test_table", "SELECT col_1, col_2, col_3 FROM test_table", 0),
                 columnHandles,
-                testingPinotClient);
+                testingPinotClient,
+                LIMIT_FOR_BROKER_QUERIES);
 
         Page page = pageSource.getNextPage();
         assertEquals(page.getChannelCount(), columnHandles.size());
@@ -128,7 +130,8 @@ public class TestBrokerQueries
         PinotBrokerPageSource pageSource = new PinotBrokerPageSource(createSessionWithNumSplits(1, false, pinotConfig),
                 new PinotQuery("test_table", "SELECT COUNT(*) FROM test_table", 0),
                 ImmutableList.of(),
-                testingPinotClient);
+                testingPinotClient,
+                LIMIT_FOR_BROKER_QUERIES);
         Page page = pageSource.getNextPage();
         assertEquals(page.getPositionCount(), RESPONSE.getResultTable().getRows().size());
         assertEquals(page.getChannelCount(), 0);
