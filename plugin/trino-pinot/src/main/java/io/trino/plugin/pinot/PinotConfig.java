@@ -51,6 +51,7 @@ public class PinotConfig
     private int nonAggregateLimitForBrokerQueries = 25_000;
     private int maxRowsPerSplitForSegmentQueries = 50_000;
     private int maxRowsForBrokerQueries = 50_000;
+    private boolean aggregationPushdownEnabled = true;
 
     @NotNull
     public List<String> getControllerUrls()
@@ -268,6 +269,18 @@ public class PinotConfig
     public PinotConfig setMaxRowsForBrokerQueries(int maxRowsForBrokerQueries)
     {
         this.maxRowsForBrokerQueries = maxRowsForBrokerQueries;
+        return this;
+    }
+
+    public boolean isAggregationPushdownEnabled()
+    {
+        return aggregationPushdownEnabled;
+    }
+
+    @Config("pinot.aggregation-pushdown.enabled")
+    public PinotConfig setAggregationPushdownEnabled(boolean aggregationPushdownEnabled)
+    {
+        this.aggregationPushdownEnabled = aggregationPushdownEnabled;
         return this;
     }
 }
