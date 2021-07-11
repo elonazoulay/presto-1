@@ -20,6 +20,7 @@ import io.trino.spi.connector.AggregateFunction;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -45,6 +46,8 @@ public interface AggregateFunctionRule
         }
 
         Map<String, ColumnHandle> getAssignments();
+
+        Optional<List<String>> getExistingGroupingColumns();
 
         Function<String, String> getIdentifierQuote();
 

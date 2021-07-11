@@ -18,11 +18,13 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.confluent.kafka.serializers.KafkaAvroSerializer;
+import io.trino.Session;
 import io.trino.plugin.pinot.client.PinotHostMapper;
 import io.trino.sql.planner.plan.AggregationNode;
 import io.trino.sql.planner.plan.ExchangeNode;
 import io.trino.sql.planner.plan.FilterNode;
 import io.trino.sql.planner.plan.LimitNode;
+import io.trino.sql.planner.plan.MarkDistinctNode;
 import io.trino.sql.planner.plan.ProjectNode;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.MaterializedResult;
@@ -1063,8 +1065,59 @@ public class TestPinotIntegrationSmokeTest
         assertThat(query("SELECT bool_col, approx_distinct(int_col) FROM " + ALL_TYPES_TABLE + " GROUP BY bool_col"))
                 .isNotFullyPushedDown(ExchangeNode.class);
 
-        // Distinct count is partially pushed down
+        // Distinct count is fully pushed down by default
+        assertThat(query("SELECT bool_col, COUNT(DISTINCT string_col) FROM " + ALL_TYPES_TABLE + " GROUP BY bool_col"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT bool_col, COUNT(DISTINCT double_col) FROM " + ALL_TYPES_TABLE + " GROUP BY bool_col"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT bool_col, COUNT(DISTINCT float_col) FROM " + ALL_TYPES_TABLE + " GROUP BY bool_col"))
+                .isFullyPushedDown();
         assertThat(query("SELECT bool_col, COUNT(DISTINCT long_col) FROM " + ALL_TYPES_TABLE + " GROUP BY bool_col"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT bool_col, COUNT(DISTINCT int_col) FROM " + ALL_TYPES_TABLE + " GROUP BY bool_col"))
+                .isFullyPushedDown();
+        // Test queries with no grouping columns
+        assertThat(query("SELECT COUNT(DISTINCT string_col) FROM " + ALL_TYPES_TABLE))
+                .isFullyPushedDown();
+        assertThat(query("SELECT COUNT(DISTINCT bool_col) FROM " + ALL_TYPES_TABLE))
+                .isFullyPushedDown();
+        assertThat(query("SELECT COUNT(DISTINCT double_col) FROM " + ALL_TYPES_TABLE))
+                .isFullyPushedDown();
+        assertThat(query("SELECT COUNT(DISTINCT float_col) FROM " + ALL_TYPES_TABLE))
+                .isFullyPushedDown();
+        assertThat(query("SELECT COUNT(DISTINCT long_col) FROM " + ALL_TYPES_TABLE))
+                .isFullyPushedDown();
+        assertThat(query("SELECT COUNT(DISTINCT int_col) FROM " + ALL_TYPES_TABLE))
+                .isFullyPushedDown();
+
+        // Aggregation is not pushed down for queries with count distinct and other aggregations
+        assertThat(query("SELECT bool_col, MAX(long_col), COUNT(DISTINCT long_col) FROM " + ALL_TYPES_TABLE + " GROUP BY bool_col"))
+                .isNotFullyPushedDown(ProjectNode.class, AggregationNode.class, ExchangeNode.class, ExchangeNode.class, AggregationNode.class, MarkDistinctNode.class, ExchangeNode.class, ExchangeNode.class, ProjectNode.class);
+        assertThat(query("SELECT bool_col, COUNT(DISTINCT long_col), MAX(long_col) FROM " + ALL_TYPES_TABLE + " GROUP BY bool_col"))
+                .isNotFullyPushedDown(ProjectNode.class, AggregationNode.class, ExchangeNode.class, ExchangeNode.class, AggregationNode.class, MarkDistinctNode.class, ExchangeNode.class, ExchangeNode.class, ProjectNode.class);
+        assertThat(query("SELECT bool_col, COUNT(*), COUNT(DISTINCT long_col) FROM " + ALL_TYPES_TABLE + " GROUP BY bool_col"))
+                .isNotFullyPushedDown(ProjectNode.class, AggregationNode.class, ExchangeNode.class, ExchangeNode.class, AggregationNode.class, MarkDistinctNode.class, ExchangeNode.class, ExchangeNode.class, ProjectNode.class);
+        assertThat(query("SELECT bool_col, COUNT(DISTINCT long_col), COUNT(*) FROM " + ALL_TYPES_TABLE + " GROUP BY bool_col"))
+                .isNotFullyPushedDown(ProjectNode.class, AggregationNode.class, ExchangeNode.class, ExchangeNode.class, AggregationNode.class, MarkDistinctNode.class, ExchangeNode.class, ExchangeNode.class, ProjectNode.class);
+        // Test queries with no grouping columns
+        assertThat(query("SELECT MAX(long_col), COUNT(DISTINCT long_col) FROM " + ALL_TYPES_TABLE))
+                .isNotFullyPushedDown(AggregationNode.class, ExchangeNode.class, ExchangeNode.class, AggregationNode.class, MarkDistinctNode.class, ExchangeNode.class, ExchangeNode.class, ProjectNode.class);
+        assertThat(query("SELECT COUNT(DISTINCT long_col), MAX(long_col) FROM " + ALL_TYPES_TABLE))
+                .isNotFullyPushedDown(AggregationNode.class, ExchangeNode.class, ExchangeNode.class, AggregationNode.class, MarkDistinctNode.class, ExchangeNode.class, ExchangeNode.class, ProjectNode.class);
+        assertThat(query("SELECT COUNT(*), COUNT(DISTINCT long_col) FROM " + ALL_TYPES_TABLE))
+                .isNotFullyPushedDown(AggregationNode.class, ExchangeNode.class, ExchangeNode.class, AggregationNode.class, MarkDistinctNode.class, ExchangeNode.class, ExchangeNode.class, ProjectNode.class);
+        assertThat(query("SELECT COUNT(DISTINCT long_col), COUNT(*) FROM " + ALL_TYPES_TABLE))
+                .isNotFullyPushedDown(AggregationNode.class, ExchangeNode.class, ExchangeNode.class, AggregationNode.class, MarkDistinctNode.class, ExchangeNode.class, ExchangeNode.class, ProjectNode.class);
+
+        Session distinctCountPushdownDisabledSession = Session.builder(getQueryRunner().getDefaultSession())
+                .setCatalogSessionProperty("pinot", "distinct_count_pushdown_enabled", "false")
+                .build();
+
+        // Distinct count is partially pushed down when the distinct_count_pushdown_enabled session property is disabled
+        assertThat(query(distinctCountPushdownDisabledSession, "SELECT bool_col, COUNT(DISTINCT long_col) FROM " + ALL_TYPES_TABLE + " GROUP BY bool_col"))
                 .isNotFullyPushedDown(ExchangeNode.class, ProjectNode.class, AggregationNode.class, ExchangeNode.class, ExchangeNode.class, AggregationNode.class, ProjectNode.class);
+        // Test query with no grouping columns
+        assertThat(query(distinctCountPushdownDisabledSession, "SELECT COUNT(DISTINCT long_col) FROM " + ALL_TYPES_TABLE))
+                .isNotFullyPushedDown(AggregationNode.class, ExchangeNode.class, ExchangeNode.class, AggregationNode.class);
     }
 }

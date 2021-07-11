@@ -45,7 +45,8 @@ public class TestPinotConfig
                         .setRequestTimeout(new Duration(30, TimeUnit.SECONDS))
                         .setMaxRowsPerSplitForSegmentQueries(50_000)
                         .setMaxRowsForBrokerQueries(50_000)
-                        .setAggregationPushdownEnabled(true));
+                        .setAggregationPushdownEnabled(true)
+                        .setDistinctCountPushdownEnabled(true));
     }
 
     @Test
@@ -70,6 +71,7 @@ public class TestPinotConfig
                 .put("pinot.max-rows-per-split-for-segment-queries", "10")
                 .put("pinot.max-rows-for-broker-queries", "5000")
                 .put("pinot.aggregation-pushdown.enabled", "false")
+                .put("pinot.distinct-count-pushdown.enabled", "false")
                 .build();
 
         PinotConfig expected = new PinotConfig()
@@ -90,7 +92,8 @@ public class TestPinotConfig
                 .setRequestTimeout(new Duration(1, TimeUnit.MINUTES))
                 .setMaxRowsPerSplitForSegmentQueries(10)
                 .setMaxRowsForBrokerQueries(5000)
-                .setAggregationPushdownEnabled(false);
+                .setAggregationPushdownEnabled(false)
+                .setDistinctCountPushdownEnabled(false);
 
         ConfigAssertions.assertFullMapping(properties, expected);
     }

@@ -28,6 +28,7 @@ import io.trino.plugin.pinot.query.expression.AggregateFunctionRule;
 import io.trino.plugin.pinot.query.expression.ImplementApproxDistinct;
 import io.trino.plugin.pinot.query.expression.ImplementAvg;
 import io.trino.plugin.pinot.query.expression.ImplementCountAll;
+import io.trino.plugin.pinot.query.expression.ImplementCountDistinct;
 import io.trino.plugin.pinot.query.expression.ImplementMinMax;
 import io.trino.plugin.pinot.query.expression.ImplementSum;
 import io.trino.spi.connector.AggregateFunction;
@@ -121,6 +122,7 @@ public class PinotMetadata
                 .add(new ImplementMinMax())
                 .add(new ImplementSum())
                 .add(new ImplementApproxDistinct())
+                .add(new ImplementCountDistinct())
                 .build());
     }
 
@@ -333,11 +335,10 @@ public class PinotMetadata
         }
 
         PinotTableHandle tableHandle = (PinotTableHandle) handle;
-        // If aggregate and grouping columns are present than no further aggregations
+        // If aggregate are present than no further aggregations
         // can be pushed down: there are currently no subqueries in pinot
         if (tableHandle.getQuery().isPresent() &&
-                (!tableHandle.getQuery().get().getAggregateColumns().isEmpty() ||
-                        !tableHandle.getQuery().get().getGroupingColumns().isEmpty())) {
+                !tableHandle.getQuery().get().getAggregateColumns().isEmpty()) {
             return Optional.empty();
         }
 
@@ -346,7 +347,7 @@ public class PinotMetadata
         ImmutableList.Builder<PinotColumnHandle> aggregationExpressions = ImmutableList.builder();
 
         for (AggregateFunction aggregate : aggregates) {
-            Optional<PinotColumnHandle> rewriteResult = aggregateFunctionRewriter.rewrite(session, aggregate, assignments);
+            Optional<PinotColumnHandle> rewriteResult = aggregateFunctionRewriter.rewrite(session, aggregate, assignments, tableHandle);
             if (rewriteResult.isEmpty()) {
                 return Optional.empty();
             }

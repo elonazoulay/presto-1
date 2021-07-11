@@ -16,11 +16,14 @@ package io.trino.plugin.pinot.query.expression;
 import com.google.common.collect.ImmutableSet;
 import io.trino.matching.Match;
 import io.trino.plugin.pinot.PinotColumnHandle;
+import io.trino.plugin.pinot.PinotTableHandle;
+import io.trino.plugin.pinot.query.DynamicTable;
 import io.trino.spi.connector.AggregateFunction;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
 
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -40,7 +43,7 @@ public final class AggregateFunctionRewriter
         this.rules = ImmutableSet.copyOf(requireNonNull(rules, "rules is null"));
     }
 
-    public Optional<PinotColumnHandle> rewrite(ConnectorSession session, AggregateFunction aggregateFunction, Map<String, ColumnHandle> assignments)
+    public Optional<PinotColumnHandle> rewrite(ConnectorSession session, AggregateFunction aggregateFunction, Map<String, ColumnHandle> assignments, PinotTableHandle tableHandle)
     {
         requireNonNull(aggregateFunction, "aggregateFunction is null");
         requireNonNull(assignments, "assignments is null");
@@ -51,6 +54,13 @@ public final class AggregateFunctionRewriter
             public Map<String, ColumnHandle> getAssignments()
             {
                 return assignments;
+            }
+
+            @Override
+            public Optional<List<String>> getExistingGroupingColumns()
+            {
+                return tableHandle.getQuery()
+                        .map(DynamicTable::getGroupingColumns);
             }
 
             @Override

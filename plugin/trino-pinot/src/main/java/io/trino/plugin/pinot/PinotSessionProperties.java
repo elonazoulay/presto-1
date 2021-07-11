@@ -35,6 +35,7 @@ public class PinotSessionProperties
     private static final String RETRY_COUNT = "retry_count";
     private static final String NON_AGGREGATE_LIMIT_FOR_BROKER_QUERIES = "non_aggregate_limit_for_broker_queries";
     private static final String AGGREGATION_PUSHDOWN_ENABLED = "aggregation_pushdown_enabled";
+    private static final String DISTINCT_COUNT_PUSHDOWN_ENABLED = "distinct_count_pushdown_enabled";
 
     @VisibleForTesting
     public static final String FORBID_SEGMENT_QUERIES = "forbid_segment_queries";
@@ -80,6 +81,11 @@ public class PinotSessionProperties
         return session.getProperty(AGGREGATION_PUSHDOWN_ENABLED, Boolean.class);
     }
 
+    public static boolean isDistinctCountPushdownEnabled(ConnectorSession session)
+    {
+        return session.getProperty(DISTINCT_COUNT_PUSHDOWN_ENABLED, Boolean.class);
+    }
+
     @Inject
     public PinotSessionProperties(PinotConfig pinotConfig)
     {
@@ -119,6 +125,11 @@ public class PinotSessionProperties
                         AGGREGATION_PUSHDOWN_ENABLED,
                         "Enable aggregation pushdown",
                         pinotConfig.isAggregationPushdownEnabled(),
+                        false),
+                booleanProperty(
+                        DISTINCT_COUNT_PUSHDOWN_ENABLED,
+                        "Enable distinct count pushdown",
+                        pinotConfig.isDistinctCountPushdownEnabled(),
                         false));
     }
 
